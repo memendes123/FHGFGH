@@ -24,20 +24,27 @@ logging.basicConfig(
 )
 
 def parse_signal(message):
-    action_match = re.search(r'^(BUY|SELL)\s+([A-Z]+)\s+([\d\.]+)', message, re.MULTILINE | re.IGNORECASE)
-    tp2 = re.search(r'🤑TP2:\s*([\d\.]+)', message)
-    sl = re.search(r'🔴SL:\s*([\d\.]+)', message)
-    if action_match and tp2 and sl:
+    action_match = re.search(r'\b(BUY|SELL)\s+([A-Z]+)\s+([\d\.]+)', message, re.MULTILINE | re.IGNORECASE)
+    tp2_match = re.search(r'(?:🤑?\s*TP2|TP2):\s*([\d\.,]+)', message, re.IGNORECASE)
+    sl_match = re.search(r'(?:🔴\s*SL|SL):\s*([\d\.,]+)', message, re.IGNORECASE)
+
+    if action_match and tp2_match and sl_match:
         action, symbol, entry = action_match.groups()
+
+        def _to_float(value: str) -> float:
+            return float(value.replace(',', '.'))
+
         signal = {
             'action': action.upper(),
             'symbol': symbol,
-            'entry': float(entry),
-            'tp': float(tp2.group(1)),
-            'sl': float(sl.group(1))
+            'entry': _to_float(entry),
+            'tp': _to_float(tp2_match.group(1)),
+            'sl': _to_float(sl_match.group(1))
         }
         logging.info(f"Parsed signal: {signal}")
         return signal
+
+    logging.warning("Signal parsing failed — missing action, TP2, or SL in message")
     return None
 
 def connect_mt5():
